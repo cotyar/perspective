@@ -502,7 +502,7 @@ async function loadTable(table, computed = false) {
     this.shadowRoot.querySelector("#side_panel__actions").style.visibility = "visible";
 
     this.filters = this.getAttribute("filters");
-    await this._debounce_update();
+    await this._debounce_update(false, redraw);
 }
 
 function new_row(name, type, aggregate, filter, sort, computed) {
@@ -600,7 +600,7 @@ class CancelTask {
     }
 }
 
-async function update() {
+async function update(redraw = true, ignore_size_check = false) {
     if (!this._table) return;
     let row_pivots = this._view_columns("#row_pivots perspective-row");
     let column_pivots = this._view_columns("#column_pivots perspective-row");
@@ -625,6 +625,20 @@ async function update() {
         aggregate: aggregates,
         sort: sort
     });
+
+    if (ignore_size_check === false && this._show_warnings === true && this._plugin.max_size !== undefined) {
+        // validate that the render does not slow down the browser
+        const num_columns = await this._view.num_columns();
+        const num_rows = await this._view.num_rows();
+        const count = num_columns * num_rows;
+        if (count >= this._plugin.max_size) {
+            this._plugin_information.classList.remove("hidden");
+            return;
+        }
+    }
+
+    // be careful where it needs to be - side effects are important
+    // TEST with streaming where datasets are larger than threshold
 
     this._view.on_update(() => {
         if (!this._debounced) {
@@ -941,6 +955,9 @@ class ViewPrivate extends HTMLElement {
         this._add_computed_column = this.shadowRoot.querySelector("#add-computed-column");
         this._computed_column = this.shadowRoot.querySelector("perspective-computed-column");
         this._computed_column_inputs = this._computed_column.querySelector("#psp-cc-computation-inputs");
+        this._plugin_information = this.querySelector(".plugin_information");
+        this._plugin_information_action = this.querySelector(".plugin_information__action");
+        this._plugin_information_dismiss = this.querySelector(".plugin_information__action--dismiss");
         this._inner_drop_target = this.shadowRoot.querySelector("#drop_target_inner");
         this._drop_target = this.shadowRoot.querySelector("#drop_target");
         this._config_button = this.shadowRoot.querySelector("#config_button");
@@ -974,6 +991,15 @@ class ViewPrivate extends HTMLElement {
             this.setAttribute("view", this._vis_selector.value);
             this._debounce_update();
         });
+        this._plugin_information_action.addEventListener("mousedown", () => {
+            this._debounce_update(true);
+            this._plugin_information.classList.add("hidden");
+        });
+        this._plugin_information_dismiss.addEventListener("mousedown", () => {
+            this._debounce_update(true);
+            this._plugin_information.classList.add("hidden");
+            this._show_warnings = false;
+        });
     }
 
     _register_view_options() {
@@ -996,14 +1022,15 @@ class ViewPrivate extends HTMLElement {
     }
 
     _register_debounce_instance() {
-        const _update = _.debounce(resolve => {
+        const _update = _.debounce((redraw, resolve, ignore_size_check) => {
             update
-                .bind(this)()
+                .bind(this)(redraw, ignore_size_check)
                 .then(resolve);
         }, 10);
-        this._debounce_update = async () => {
+        // parameter order flipped to prevent ignore specification on every call
+        this._debounce_update = async (ignore_size_check = false, redraw) => {
             this.setAttribute("updating", true);
-            await new Promise(_update);
+            await new Promise(resolve => _update(redraw, resolve, ignore_size_check));
         };
     }
 }
@@ -1024,6 +1051,7 @@ class View extends ViewPrivate {
         this._register_debounce_instance();
         this._slaves = [];
         this._show_config = true;
+        this._show_warnings = true;
         const resize_handler = _.debounce(this.notifyResize, 250).bind(this);
         window.addEventListener("load", resize_handler);
         window.addEventListener("resize", resize_handler);
