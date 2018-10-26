@@ -10,14 +10,17 @@
 const load_perspective = require("../../obj/psp.async.js").load_perspective;
 const perspective = require("./perspective.js");
 
+import wasm from "file-loader!../../obj/psp.async.wasm";
+
 if (global.document !== undefined && typeof WebAssembly !== "undefined") {
     module.exports = perspective(
         load_perspective({
             wasmJSMethod: "native-wasm",
             printErr: x => console.error(x),
             print: x => console.log(x)
-        })
+        }),
+        wasm
     );
 } else {
-    module.exports = perspective(load_perspective);
+    module.exports = perspective(load_perspective, wasm);
 }

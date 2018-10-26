@@ -26,7 +26,7 @@ module.exports = function() {
             rules: [
                 {
                     test: /\.css$/,
-                    use: [{loader: "css-loader"}]
+                    use: [{loader: "css-loader"}, {loader: "clean-css-loader", options: {level: 2}}]
                 },
                 {
                     test: /\.less$/,
@@ -47,11 +47,15 @@ module.exports = function() {
                     }
                 },
                 {
+                    test: /perspective\.(asmjs|wasm)\.js$/,
+                    use: {loader: "worker-loader"}
+                },
+                {
                     test: /\.js$/,
-                    exclude: /node_modules\/(?!(\@apache-arrow|\@jupyterlab))|psp\.(asmjs|async|sync).js/,
+                    exclude: /node_modules\/(?!(\@apache|\@jupyterlab))|psp\.(asmjs|async|sync).js/,
                     loader: "babel-loader",
                     options: {
-                        presets: ["env"],
+                        presets: [["env", {useBuiltIns: true}]],
                         plugins: ["transform-decorators-legacy", "transform-custom-element-classes", "transform-runtime", "transform-object-rest-spread", ["transform-es2015-for-of", {loose: true}]]
                     }
                 }

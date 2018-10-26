@@ -28,7 +28,7 @@ if (typeof self !== "undefined" && self.performance === undefined) {
 
 const CHUNKED_THRESHOLD = 100000;
 
-module.exports = function(Module) {
+module.exports = function(Module, wasm) {
     let __MODULE__ = Module;
 
     /******************************************************************************
@@ -1762,28 +1762,21 @@ module.exports = function(Module) {
             self.postMessage(msg);
         }
 
-        init(msg) {
+        init() {
             if (typeof WebAssembly === "undefined") {
                 console.log("Loading asm.js");
             } else {
                 console.log("Loading wasm");
-                if (msg.data) {
+                let wasmXHR = new XMLHttpRequest();
+                wasmXHR.open("GET", wasm, true);
+                wasmXHR.responseType = "arraybuffer";
+                wasmXHR.onload = function() {
                     module = {};
-                    module.wasmBinary = msg.data;
+                    module.wasmBinary = wasmXHR.response;
                     module.wasmJSMethod = "native-wasm";
                     __MODULE__ = __MODULE__(module);
-                } else {
-                    let wasmXHR = new XMLHttpRequest();
-                    wasmXHR.open("GET", msg.path + "psp.async.wasm", true);
-                    wasmXHR.responseType = "arraybuffer";
-                    wasmXHR.onload = function() {
-                        module = {};
-                        module.wasmBinary = wasmXHR.response;
-                        module.wasmJSMethod = "native-wasm";
-                        __MODULE__ = __MODULE__(module);
-                    };
-                    wasmXHR.send(null);
-                }
+                };
+                wasmXHR.send(null);
             }
         }
     }
