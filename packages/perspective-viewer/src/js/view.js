@@ -356,7 +356,7 @@ async function loadTable(table, computed = false) {
                     }
                 });
             }
-            this._debounce_update({redraw: true, ignore_size_check: false});
+            this._debounce_update({ignore_size_check: false});
             return;
         }
     }
@@ -502,7 +502,7 @@ async function loadTable(table, computed = false) {
     this.shadowRoot.querySelector("#side_panel__actions").style.visibility = "visible";
 
     this.filters = this.getAttribute("filters");
-    await this._debounce_update({redraw: redraw, ignore_size_check: false});
+    await this._debounce_update({ignore_size_check: false});
 }
 
 function new_row(name, type, aggregate, filter, sort, computed) {
@@ -600,7 +600,7 @@ class CancelTask {
     }
 }
 
-async function update(redraw = true, ignore_size_check = false) {
+async function update(ignore_size_check = false) {
     this._plugin_information.classList.add("hidden");
     if (!this._table) return;
     let row_pivots = this._view_columns("#row_pivots perspective-row");
@@ -632,7 +632,6 @@ async function update(redraw = true, ignore_size_check = false) {
         const num_columns = await this._view.num_columns();
         const num_rows = await this._view.num_rows();
         const count = num_columns * num_rows;
-        console.log(count);
         if (count >= this._plugin.max_size) {
             this._plugin_information.classList.remove("hidden");
             return;
@@ -954,9 +953,6 @@ class ViewPrivate extends HTMLElement {
         this._add_computed_column = this.shadowRoot.querySelector("#add-computed-column");
         this._computed_column = this.shadowRoot.querySelector("perspective-computed-column");
         this._computed_column_inputs = this._computed_column.querySelector("#psp-cc-computation-inputs");
-        this._plugin_information = this.querySelector(".plugin_information");
-        this._plugin_information_action = this.querySelector(".plugin_information__action");
-        this._plugin_information_dismiss = this.querySelector(".plugin_information__action--dismiss");
         this._inner_drop_target = this.shadowRoot.querySelector("#drop_target_inner");
         this._drop_target = this.shadowRoot.querySelector("#drop_target");
         this._config_button = this.shadowRoot.querySelector("#config_button");
@@ -964,6 +960,9 @@ class ViewPrivate extends HTMLElement {
         this._top_panel = this.shadowRoot.querySelector("#top_panel");
         this._sort = this.shadowRoot.querySelector("#sort");
         this._transpose_button = this.shadowRoot.querySelector("#transpose_button");
+        this._plugin_information = this.shadowRoot.querySelector(".plugin_information");
+        this._plugin_information_action = this.shadowRoot.querySelector(".plugin_information__action");
+        this._plugin_information_dismiss = this.shadowRoot.querySelector(".plugin_information__action--dismiss");
     }
 
     _register_callbacks() {
@@ -1021,14 +1020,14 @@ class ViewPrivate extends HTMLElement {
     }
 
     _register_debounce_instance() {
-        const _update = _.debounce((redraw, resolve, ignore_size_check) => {
+        const _update = _.debounce((resolve, ignore_size_check) => {
             update
-                .bind(this)(redraw, ignore_size_check)
+                .bind(this)(ignore_size_check)
                 .then(resolve);
         }, 10);
-        this._debounce_update = async ({redraw = undefined, ignore_size_check = false} = {}) => {
+        this._debounce_update = async ({ignore_size_check = false} = {}) => {
             this.setAttribute("updating", true);
-            await new Promise(resolve => _update(redraw, resolve, ignore_size_check));
+            await new Promise(resolve => _update(resolve, ignore_size_check));
         };
     }
 }
